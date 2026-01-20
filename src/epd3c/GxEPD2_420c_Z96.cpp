@@ -96,15 +96,19 @@ void GxEPD2_420c_Z96::writeImage(const uint8_t* black, const uint8_t* color, int
   //_setPartialRamArea(x1, y1, w1, h1);
   _writeCommand(0x24);
   _startTransfer();
-  for (int16_t i = 0; i < h1; i++)
+  // 写入整个屏幕缓冲区（15000字节），Y从299递减到0（匹配Data Entry Mode 0x01）
+  for (int16_t i = HEIGHT - 1; i >= 0; i--)
   {
-    for (int16_t j = 0; j < w1 / 8; j++)
+    for (int16_t j = 0; j < WIDTH / 8; j++)
     {
-      uint8_t data = 0xFF;
-      if (black)
+      uint8_t data = 0xFF; // 默认白色
+      // 检查当前像素是否在图像范围内
+      if (black && i >= y1 && i < y1 + h1 && j >= x1 / 8 && j < (x1 + w1) / 8)
       {
         // use wb, h of bitmap for index!
-        int16_t idx = mirror_y ? j + dx / 8 + ((h - 1 - (i + dy))) * wb : j + dx / 8 + (i + dy) * wb;
+        int16_t rel_i = i - y1 + dy;
+        int16_t rel_j = j - x1 / 8 + dx / 8;
+        int16_t idx = mirror_y ? rel_j + ((h - 1 - rel_i)) * wb : rel_j + rel_i * wb;
         if (pgm)
         {
 #if defined(__AVR) || defined(ESP8266) || defined(ESP32)
@@ -118,7 +122,6 @@ void GxEPD2_420c_Z96::writeImage(const uint8_t* black, const uint8_t* color, int
           data = black[idx];
         }
         if (invert) data = ~data;
-
       }
       _transfer(data);
     }
@@ -126,15 +129,19 @@ void GxEPD2_420c_Z96::writeImage(const uint8_t* black, const uint8_t* color, int
   _endTransfer();
   _writeCommand(0x26);
   _startTransfer();
-  for (int16_t i = 0; i < h1; i++)
+  // 写入整个屏幕的红色通道
+  for (int16_t i = HEIGHT - 1; i >= 0; i--)
   {
-    for (int16_t j = 0; j < w1 / 8; j++)
+    for (int16_t j = 0; j < WIDTH / 8; j++)
     {
-      uint8_t data = 0xFF;
-      if (color)
+      uint8_t data = 0xFF; // 默认无红色
+      // 检查当前像素是否在图像范围内
+      if (color && i >= y1 && i < y1 + h1 && j >= x1 / 8 && j < (x1 + w1) / 8)
       {
         // use wb, h of bitmap for index!
-        int16_t idx = mirror_y ? j + dx / 8 + ((h - 1 - (i + dy))) * wb : j + dx / 8 + (i + dy) * wb;
+        int16_t rel_i = i - y1 + dy;
+        int16_t rel_j = j - x1 / 8 + dx / 8;
+        int16_t idx = mirror_y ? rel_j + ((h - 1 - rel_i)) * wb : rel_j + rel_i * wb;
         if (pgm)
         {
 #if defined(__AVR) || defined(ESP8266) || defined(ESP32)
@@ -189,41 +196,51 @@ void GxEPD2_420c_Z96::writeImagePart(const uint8_t* black, const uint8_t* color,
   //_setPartialRamArea(x1, y1, w1, h1);
   _writeCommand(0x24);
   _startTransfer();
-  for (int16_t i = 0; i < h1; i++)
+  // 写入整个屏幕缓冲区，Y从299递减到0（匹配Data Entry Mode 0x01）
+  for (int16_t i = HEIGHT - 1; i >= 0; i--)
   {
-    for (int16_t j = 0; j < w1 / 8; j++)
+    for (int16_t j = 0; j < WIDTH / 8; j++)
     {
-      uint8_t data;
-      // use wb_bitmap, h_bitmap of bitmap for index!
-      int16_t idx = mirror_y ? x_part / 8 + j + dx / 8 + ((h_bitmap - 1 - (y_part + i + dy))) * wb_bitmap : x_part / 8 + j + dx / 8 + (y_part + i + dy) * wb_bitmap;
-      if (pgm)
+      uint8_t data = 0xFF; // 默认白色
+      // 检查当前像素是否在图像范围内
+      if (black && i >= y1 && i < y1 + h1 && j >= x1 / 8 && j < (x1 + w1) / 8)
       {
+        // use wb_bitmap, h_bitmap of bitmap for index!
+        int16_t rel_i = i - y1 + dy;
+        int16_t rel_j = j - x1 / 8 + dx / 8;
+        int16_t idx = mirror_y ? x_part / 8 + rel_j + ((h_bitmap - 1 - (y_part + rel_i))) * wb_bitmap : x_part / 8 + rel_j + (y_part + rel_i) * wb_bitmap;
+        if (pgm)
+        {
 #if defined(__AVR) || defined(ESP8266) || defined(ESP32)
-        data = pgm_read_byte(&black[idx]);
+          data = pgm_read_byte(&black[idx]);
 #else
-        data = black[idx];
+          data = black[idx];
 #endif
+        }
+        else
+        {
+          data = black[idx];
+        }
+        if (invert) data = ~data;
       }
-      else
-      {
-        data = black[idx];
-      }
-      if (invert) data = ~data;
       _transfer(data);
     }
   }
   _endTransfer();
   _writeCommand(0x26);
   _startTransfer();
-  for (int16_t i = 0; i < h1; i++)
+  // 写入整个屏幕的红色通道
+  for (int16_t i = HEIGHT - 1; i >= 0; i--)
   {
-    for (int16_t j = 0; j < w1 / 8; j++)
+    for (int16_t j = 0; j < WIDTH / 8; j++)
     {
-      uint8_t data = 0xFF;
-      if (color)
+      uint8_t data = 0xFF; // 默认无红色
+      if (color && i >= y1 && i < y1 + h1 && j >= x1 / 8 && j < (x1 + w1) / 8)
       {
         // use wb_bitmap, h_bitmap of bitmap for index!
-        int16_t idx = mirror_y ? x_part / 8 + j + dx / 8 + ((h_bitmap - 1 - (y_part + i + dy))) * wb_bitmap : x_part / 8 + j + dx / 8 + (y_part + i + dy) * wb_bitmap;
+        int16_t rel_i = i - y1 + dy;
+        int16_t rel_j = j - x1 / 8 + dx / 8;
+        int16_t idx = mirror_y ? x_part / 8 + rel_j + ((h_bitmap - 1 - (y_part + rel_i))) * wb_bitmap : x_part / 8 + rel_j + (y_part + rel_i) * wb_bitmap;
         if (pgm)
         {
 #if defined(__AVR) || defined(ESP8266) || defined(ESP32)
@@ -307,7 +324,7 @@ void GxEPD2_420c_Z96::hibernate()
   if (_rst >= 0)
   {
     _writeCommand(0x10); // deep sleep
-    _writeData(0xA5);    // check code
+    _writeData(0x01);    // deep sleep mode (官方推荐值)
     _hibernating = true;
   }
 }
